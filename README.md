@@ -64,13 +64,13 @@ pip install -r requirements.txt
 
 ## Running in Dev Mode
 
-Store credentials with nono, then run under nono with smee forwarding webhooks locally:
+Run under nono with credentials passed as environment variables:
 
 ```bash
-nono credential store --name gitbot/github-token  --value ghp_your_real_token
-nono credential store --name gitbot/gemini-api-key --value your_gemini_key
-nono credential store --name gitbot/webhook-secret --value your_webhook_secret
-
+GITHUB_TOKEN=ghp_your_real_token \
+GEMINI_API_KEY=your_gemini_key \
+WEBHOOK_SECRET=your_webhook_secret \
+GITHUB_REPO=owner/repo \
 nono run --policy policy.nono.toml -- python bot.py
 ```
 
@@ -100,40 +100,24 @@ Review `policy.nono.toml`, trim any overly-broad paths, and verify the `deny` bl
 
 ```bash
 nono trust sign GEMINI.md
-# Creates .nono-trust.bundle — commit both files
-git add GEMINI.md .nono-trust.bundle
+# Creates GEMINI.md.bundle — commit both files
+git add GEMINI.md GEMINI.md.bundle
 git commit -m "Sign GEMINI.md with nono trust"
 ```
 
-### Step 3 — Store credentials in keychain
+### Step 3 — Run with credentials as environment variables
 
 ```bash
-nono credential store --name gitbot/github-token  --value ghp_your_real_token
-nono credential store --name gitbot/gemini-api-key --value your_gemini_key
-nono credential store --name gitbot/webhook-secret --value your_webhook_secret
-```
-
-### Step 4 — Run
-
-```bash
+GITHUB_TOKEN=ghp_your_real_token \
+GEMINI_API_KEY=your_gemini_key \
+WEBHOOK_SECRET=your_webhook_secret \
+GITHUB_REPO=owner/repo \
 nono run --policy policy.nono.toml -- python bot.py
 ```
 
 ---
 
 ## nono Features Demonstrated
-
-### Credential Injection (Phantom Tokens)
-
-`policy.nono.toml` declares three credentials. nono injects them as phantom tokens — the process sees `GITHUB_TOKEN`, `GEMINI_API_KEY`, and `WEBHOOK_SECRET` in its environment, but the values are opaque identifiers, not the real secrets. nono intercepts outbound calls to `api.github.com` and `generativelanguage.googleapis.com` and swaps in the real credentials at the network layer.
-
-**Demo:**
-
-```bash
-curl http://localhost:5000/debug/show-token
-# → {"token_seen_by_process": "nono:..."}  ← phantom, not ghp_...
-# But GitHub API calls still succeed!
-```
 
 ### Trust Verification (GEMINI.md Integrity)
 
@@ -203,7 +187,7 @@ To modify the bot's behavior: edit `GEMINI.md`, then re-sign:
 
 ```bash
 nono trust sign GEMINI.md
-git add GEMINI.md .nono-trust.bundle
+git add GEMINI.md GEMINI.md.bundle
 git commit -m "Update and re-sign bot instructions"
 ```
 

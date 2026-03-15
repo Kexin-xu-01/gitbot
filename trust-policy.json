@@ -1,0 +1,12 @@
+{
+  "version": 1,
+  "publishers": [
+    {
+      "name": "default",
+      "public_key": "MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAEnNK2MHEZUVi4r/iEI11bYL8txhCH9BYbX1Ku7hvCKGuSP2Lt+s4buvsaAJx6+fXT8/8ab1PI/KW3UizCfINv1Q=="
+    }
+  ],
+  "instruction_patterns": ["GEMINI.md"],
+  "blocklist": { "digests": [] },
+  "enforcement": "deny"
+}

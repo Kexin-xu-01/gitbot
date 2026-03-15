@@ -47,14 +47,13 @@ allow = [
 ]
 # Everything not in the allow list is denied by default.
 
-[credentials]
-inject = [
-  { name = "GITHUB_TOKEN",   keychain_item = "gitbot/github-token" },
-  { name = "GEMINI_API_KEY", keychain_item = "gitbot/gemini-api-key" },
-  { name = "WEBHOOK_SECRET", keychain_item = "gitbot/webhook-secret" },
-]
+# [credentials]
+# Credential injection is not yet available in this version of nono.
+# Pass credentials as environment variables:
+#   GITHUB_TOKEN=... GEMINI_API_KEY=... WEBHOOK_SECRET=... GITHUB_REPO=owner/repo \
+#   nono run --policy policy.nono.toml -- python bot.py
 
 [trust]
 verify_at_startup = [
-  { file = "GEMINI.md", bundle = ".nono-trust.bundle" }
+  { file = "GEMINI.md", bundle = "GEMINI.md.bundle" }
 ]
