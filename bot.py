@@ -222,6 +222,19 @@ def debug_read_ssh():
         return jsonify({"status": "file_not_found (no SSH key at default path)"}), 404
 
 
+@app.route("/", methods=["GET"])
+def index():
+    return jsonify({
+        "name": "gitbot",
+        "status": "running",
+        "repo": GITHUB_REPO,
+        "endpoints": {
+            "webhook": "POST /webhook",
+            "health": "GET /health",
+        }
+    }), 200
+
+
 @app.route("/health", methods=["GET"])
 def health():
     return jsonify({"status": "ok"}), 200
