@@ -55,7 +55,7 @@ pip install -r requirements.txt
 ### Configure Webhook
 
 1. Go to your GitHub repo → Settings → Webhooks → Add webhook
-2. **Payload URL**: your smee.io channel URL (see [Dev Mode](#running-in-dev-mode))
+2. **Payload URL**: `https://smee.io/jYOz6VjHftg8bURp`
 3. **Content type**: `application/json`
 4. **Secret**: a random string (save this as `WEBHOOK_SECRET`)
 5. **Events**: select "Issues" only
@@ -78,7 +78,7 @@ In a second terminal, forward webhooks from GitHub to your local server:
 
 ```bash
 npm install --global smee-client
-smee --url https://smee.io/<your-channel-id> --port 5000 --path /webhook
+smee --url https://smee.io/jYOz6VjHftg8bURp --port 5001 --path /webhook
 ```
 
 Use smee's event replay button to re-test without opening new GitHub issues.
