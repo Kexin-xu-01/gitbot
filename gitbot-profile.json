@@ -1,0 +1,34 @@
+{
+  "meta": {
+    "name": "gitbot",
+    "version": "1.0.0",
+    "description": "Sandbox profile for the nono GitHub issue triage bot. Deny blocks prevent credential exfiltration even if a dependency is compromised."
+  },
+  "workdir": {
+    "access": "readwrite"
+  },
+  "security": {
+    "groups": ["python_runtime"]
+  },
+  "filesystem": {
+    "read": [
+      "/private/etc/ssl/cert.pem",
+      "/private/etc/resolv.conf"
+    ],
+    "write": [
+      "/tmp"
+    ]
+  },
+  "policy": {
+    "add_deny_access": [
+      "$HOME/.ssh",
+      "$HOME/.aws",
+      "$HOME/.gnupg",
+      "$HOME/.config/gcloud",
+      "$HOME/.kube"
+    ]
+  },
+  "network": {
+    "block": false
+  }
+}
