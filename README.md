@@ -42,12 +42,13 @@ GitHub Issue Opened
 - A GitHub repo where you have admin access (to configure webhooks)
 - A Gemini API key
 - A GitHub personal access token with `issues:write` and `repo` scopes
-- `nono` CLI (for production use; optional for dev)
+- `nono` CLI (required)
 
 ### Install
 
 ```bash
-cd /Users/kexinxu/gitbot
+git clone https://github.com/Kexin-xu-01/gitbot.git
+cd gitbot
 pip install -r requirements.txt
 ```
 
@@ -63,15 +64,14 @@ pip install -r requirements.txt
 
 ## Running in Dev Mode
 
-Set real credentials as environment variables (no nono required):
+Store credentials with nono, then run under nono with smee forwarding webhooks locally:
 
 ```bash
-export GITHUB_TOKEN=ghp_your_real_token
-export GEMINI_API_KEY=your_gemini_key
-export WEBHOOK_SECRET=your_webhook_secret
-export GITHUB_REPO=owner/repo
+nono credential store --name gitbot/github-token  --value ghp_your_real_token
+nono credential store --name gitbot/gemini-api-key --value your_gemini_key
+nono credential store --name gitbot/webhook-secret --value your_webhook_secret
 
-python bot.py
+nono run --policy policy.nono.toml -- python bot.py
 ```
 
 In a second terminal, forward webhooks from GitHub to your local server:

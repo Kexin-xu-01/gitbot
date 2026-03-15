@@ -56,8 +56,8 @@ def verify_gemini_md_trust() -> None:
     """
     Call 'nono trust verify GEMINI.md'.
 
-    If nono is not installed (dev mode without nono), emit a warning and continue.
-    If nono IS installed and verification fails, exit(1).
+    Exits with an error if nono is not installed or if verification fails.
+    The bot must run under nono — there is no bypass.
     """
     try:
         result = subprocess.run(
@@ -74,11 +74,11 @@ def verify_gemini_md_trust() -> None:
             sys.exit(1)
         logger.info("GEMINI.md trust verification passed.")
     except FileNotFoundError:
-        # nono binary not found — dev mode, proceed with warning
-        logger.warning(
-            "nono binary not found — skipping trust verification (dev mode). "
-            "Run under 'nono run' in production."
+        logger.critical(
+            "FATAL: nono binary not found. "
+            "Install nono and run via: nono run --policy policy.nono.toml -- python bot.py"
         )
+        sys.exit(1)
 
 
 # ---------------------------------------------------------------------------
