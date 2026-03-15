@@ -40,9 +40,12 @@ def apply_label(issue, label_name: str) -> None:
     logger.info("Applied label %r to issue #%d", label_name, issue.number)
 
 
+_BOT_HEADER = "> 🤖 *gitbot — automated triage*\n\n"
+
+
 def post_comment(issue, body: str) -> None:
-    """Post a comment on an issue."""
-    issue.create_comment(body)
+    """Post a comment on an issue, prefixed with a bot header."""
+    issue.create_comment(_BOT_HEADER + body)
     logger.info("Posted comment on issue #%d", issue.number)
 
 
