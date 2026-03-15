@@ -34,6 +34,34 @@ GitHub Issue Opened
 
 ---
 
+## Why Build Rather Than Adopt
+
+Several off-the-shelf options exist for GitHub issue automation:
+
+| Option | Why it doesn't fit |
+|--------|-------------------|
+| **Mergify / Probot** | General-purpose rule engines — can't use nono docs or recent issues as triage context |
+| **GitHub Agentic Workflows** (Feb 2026 preview) | Uses GitHub's own credential and sandboxing model — we lose the nono trust/credential story |
+| **GitHub Actions** | Ephemeral, stateless — no persistent process to hold credentials or warm a context cache |
+
+The webhook server model is the right nono target: it holds credentials continuously, makes outbound calls to external APIs, and runs as a persistent process with an instruction file that must be integrity-checked before the process can read it. That's exactly what nono is designed to sandbox.
+
+---
+
+## Context Sources
+
+The bot assembles three context sources before calling Gemini:
+
+| Source | Why |
+|--------|-----|
+| **nono.sh docs** | Gives Gemini project-specific knowledge so triage comments reference actual nono concepts rather than generic advice |
+| **Last 20 issues** | Enables duplicate detection and first-contributor identification; TTL-cached (5 min) to avoid hammering the GitHub API |
+| **GEMINI.md** | The signed instruction file — defines label taxonomy, tone, security handling, and output format; verified by nono trust before every run |
+
+Fetching real docs and real issues — rather than hardcoding context — means the bot stays accurate as the project evolves without code changes.
+
+---
+
 ## Quick Start
 
 ### Prerequisites
@@ -90,11 +118,29 @@ Use smee's event replay button to re-test without opening new GitHub issues.
 ### Step 1 — Learn policy (first time only)
 
 ```bash
-# Start the bot under nono learn mode, then send a test webhook
-nono learn --output gitbot-profile.json -- python bot.py
+nono learn --timeout 60 -- python3 bot.py
 ```
 
-Review `gitbot-profile.json`, trim any overly-broad paths, and verify the `deny` blocks are in place.
+Send a test webhook while learn mode is running. nono traces all filesystem and network accesses and prints a summary. The actual paths the bot needs at startup are:
+
+```
+Filesystem (read):
+  /Library/Frameworks/Python.framework/Versions/3.11   # stdlib + pip packages
+  ~/Library/Python/3.11                                 # user-installed packages (dotenv, etc.)
+  /private/etc/ssl/cert.pem                             # CA bundle for TLS
+  /private/var/run/resolv.conf                          # DNS resolution
+  /Users/<you>/gitbot/**                                # project files
+
+Filesystem (write):
+  /private/tmp                                          # temp files
+
+Network (outbound):
+  api.github.com:443
+  generativelanguage.googleapis.com:443
+  nono.sh:443
+```
+
+These are encoded in `gitbot-profile.json`. The `add_deny_access` block explicitly blocks `~/.ssh`, `~/.aws`, `~/.gnupg`, `~/.config/gcloud`, and `~/.kube` — so even a compromised dependency cannot exfiltrate credentials.
 
 ### Step 2 — Sign GEMINI.md
 
@@ -206,10 +252,77 @@ Test coverage:
 
 ---
 
-## Production Path (Out of Scope)
+## Hardening and Cloud Deployment Path
 
-- `nono-attest` GitHub Action for automated signing in CI (so GEMINI.md is signed on merge)
-- Cloud deployment (e.g. nono-managed container)
+This prototype runs locally with credentials passed as environment variables. A production deployment would add several layers:
+
+### Automated signing with nono-attest
+
+Currently GEMINI.md is signed manually with `nono trust sign`. In production, signing should happen automatically in CI whenever the file changes:
+
+```yaml
+# .github/workflows/sign-instructions.yml
+on:
+  push:
+    paths: ['GEMINI.md']
+    branches: [main]
+
+permissions:
+  id-token: write   # required for keyless OIDC signing
+  contents: write
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: always-further/nono-attest@v1
+        with:
+          files: GEMINI.md
+      - run: |
+          git add GEMINI.md.bundle
+          git diff --staged --quiet || git commit -m "Auto-sign GEMINI.md" && git push
+```
+
+The trust policy would then reference the GitHub Actions OIDC identity rather than a local key:
+
+```json
+{
+  "publishers": [{
+    "name": "ci-signing",
+    "issuer": "https://token.actions.githubusercontent.com",
+    "repository": "Kexin-xu-01/gitbot",
+    "workflow": ".github/workflows/sign-instructions.yml",
+    "ref_pattern": "refs/heads/main"
+  }]
+}
+```
+
+This means only the CI pipeline on `main` can produce a valid signature — a developer's local key is no longer trusted.
+
+### Credential injection
+
+The current prototype passes credentials as plain environment variables to `nono run`. When nono's credential injection feature ships, credentials will be stored in the system keychain and injected as phantom tokens — the process sees the env var but the real value is swapped in at the network layer:
+
+```bash
+nono credential store --name gitbot/github-token  --value ghp_...
+nono credential store --name gitbot/gemini-api-key --value ...
+nono run --profile gitbot-profile.json -- python3 bot.py
+# GITHUB_TOKEN seen by process: "nono:phantom:..."
+# Real token injected by nono on outbound call to api.github.com
+```
+
+### Cloud deployment
+
+1. Package the bot as a container image
+2. Run under `nono wrap` as the entrypoint (so nono is the PID 1)
+3. Mount `gitbot-profile.json` and `trust-policy.json` from a secrets manager
+4. Replace smee.io with a real public HTTPS endpoint (load balancer → bot)
+5. Store `WEBHOOK_SECRET` in the cloud keychain, not an env var
+
+### Other production items
+
 - PR handling (currently issues only)
 - Slack/PagerDuty escalation (currently stdout only)
+- Persistent queue to handle webhook bursts without dropping events
 - Comprehensive test coverage
