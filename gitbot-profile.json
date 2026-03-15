@@ -12,6 +12,10 @@
   },
   "filesystem": {
     "read": [
+      "/Library/Frameworks/Python.framework/Versions/3.11",
+      "$HOME/Library/Python/3.11"
+    ],
+    "read_file": [
       "/private/etc/ssl/cert.pem",
       "/private/etc/resolv.conf"
     ],

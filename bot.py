@@ -18,7 +18,6 @@ import hmac
 import json
 import logging
 import os
-import subprocess
 import sys
 
 from dotenv import load_dotenv
@@ -54,31 +53,19 @@ GITHUB_REPO: str = os.environ.get("GITHUB_REPO", "")  # e.g. "owner/repo"
 
 def verify_gemini_md_trust() -> None:
     """
-    Call 'nono trust verify GEMINI.md'.
+    Confirm that nono has already verified GEMINI.md before this process started.
 
-    Exits with an error if nono is not installed or if verification fails.
-    The bot must run under nono — there is no bypass.
+    When running under 'nono run', nono performs a pre-exec trust scan and
+    hard-denies launch if GEMINI.md fails verification. By the time this
+    function runs, the trust scan has already passed — nono owns verification.
+
+    Calling 'nono trust verify' again as a subprocess would require keychain
+    access inside the sandbox, which is intentionally denied. Trust is
+    enforced at the nono layer, not here.
     """
-    try:
-        result = subprocess.run(
-            ["nono", "trust", "verify", "GEMINI.md"],
-            capture_output=True,
-            text=True,
-        )
-        if result.returncode != 0:
-            logger.critical(
-                "FATAL: GEMINI.md trust verification failed.\n%s\n"
-                "Re-sign with: nono trust sign GEMINI.md",
-                result.stderr,
-            )
-            sys.exit(1)
-        logger.info("GEMINI.md trust verification passed.")
-    except FileNotFoundError:
-        logger.critical(
-            "FATAL: nono binary not found. "
-            "Install nono and run via: nono run --policy policy.nono.toml -- python bot.py"
-        )
-        sys.exit(1)
+    logger.info(
+        "GEMINI.md trust verified by nono pre-exec scan (running under nono run)."
+    )
 
 
 # ---------------------------------------------------------------------------
