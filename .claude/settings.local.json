@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebSearch",
+      "WebFetch(domain:docs.nono.sh)",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:nono.sh)",
+      "WebFetch(domain:www.alwaysfurther.ai)",
+      "WebFetch(domain:dev.to)"
+    ]
+  }
+}
