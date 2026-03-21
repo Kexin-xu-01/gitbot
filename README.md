@@ -111,7 +111,7 @@ Paste the output into `trust-policy.json` as `public_key` and set `key_id` to `g
 nono trust sign --key gitbot GEMINI.md   # creates GEMINI.md.bundle
 nono trust sign-policy                    # creates trust-policy.json.bundle
 
-nono trust verify GEMINI.md              # should exit 0
+nono trust verify GEMINI.md --policy ./trust-policy.json   # should exit 0
 
 git add trust-policy.json trust-policy.json.bundle GEMINI.md.bundle
 git commit -m "Embed my signing key and sign instruction files"
