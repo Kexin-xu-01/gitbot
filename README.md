@@ -96,12 +96,15 @@ The repo ships with the original author's signing key in `trust-policy.json`. Be
 
 ### Step 1 — Generate a keypair
 
+Run this **outside** the repo directory to avoid accidentally committing the private key:
+
 ```bash
+cd ~
 nono trust keygen
-# Writes: nono-key.pem (private) and nono-key.pub (public)
+# Writes: ~/nono-key.pem (private) and ~/nono-key.pub (public)
 ```
 
-Keep `nono-key.pem` secret — **do not commit it**.
+Keep `nono-key.pem` secret and **never move it into the repo**.
 
 ### Step 2 — Update trust-policy.json
 

@@ -8,3 +8,7 @@ dist/
 build/
 .venv/
 venv/
+
+# Signing keys — never commit
+*.pem
+*.pub
