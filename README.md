@@ -62,7 +62,7 @@ pip3 install -r requirements.txt
 
 ### 4. Store credentials in Apple Passwords
 
-Credentials are injected by nono from your keychain before the sandbox is applied — never passed on the command line.
+GitHub token and Gemini API key are injected by nono from Apple Passwords before the sandbox is applied. The webhook secret is passed as a plain env var (nono's thread limit prevents loading all 3 via keychain).
 
 ```bash
 # GitHub personal access token
@@ -70,9 +70,6 @@ security add-internet-password -s "github.com" -a "your-github-username" -w "ghp
 
 # Gemini API key
 security add-internet-password -s "generativelanguage.googleapis.com" -a "your-account" -w "your_gemini_key"
-
-# Webhook secret
-security add-internet-password -s "gitbot.local" -a "webhook_secret" -w "your_webhook_secret"
 ```
 
 ### 5. Generate your signing key and embed it
@@ -109,7 +106,7 @@ Paste the output into `trust-policy.json` as `public_key` and set `key_id` to `g
 
 ```bash
 nono trust sign --key gitbot GEMINI.md   # creates GEMINI.md.bundle
-nono trust sign-policy                    # creates trust-policy.json.bundle
+nono trust sign-policy --key default     # signs with default key so nono can bootstrap the policy
 
 nono trust verify GEMINI.md --policy ./trust-policy.json   # should exit 0
 
@@ -122,11 +119,11 @@ git commit -m "Embed my signing key and sign instruction files"
 In one terminal, start the bot:
 
 ```bash
+WEBHOOK_SECRET=your_webhook_secret \
 GITHUB_REPO=owner/repo \
 nono run --profile gitbot-profile.json --allow-cwd --listen-port 5001 \
   --env-credential-map 'apple-password://github.com/your-github-username' GITHUB_TOKEN \
   --env-credential-map 'apple-password://generativelanguage.googleapis.com/your-account' GEMINI_API_KEY \
-  --env-credential-map 'apple-password://gitbot.local/webhook_secret' WEBHOOK_SECRET \
   -- python3 bot.py
 ```
 
