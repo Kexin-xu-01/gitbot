@@ -33,11 +33,6 @@
       "$HOME/.kube"
     ]
   },
-  "env_credentials": {
-    "gemini_api_key": "GEMINI_API_KEY",
-    "github_token": "GITHUB_TOKEN",
-    "webhook_secret": "WEBHOOK_SECRET"
-  },
   "network": {
     "allow_hosts": [
       "api.github.com",

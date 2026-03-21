@@ -152,7 +152,7 @@ git commit -m "Embed my signing key and re-sign instruction files"
 
 ## Running in Dev Mode
 
-### Option A — Pass credentials as environment variables (simple)
+### Option A — Pass credentials as environment variables (quick test only)
 
 ```bash
 GITHUB_TOKEN=ghp_your_real_token \
@@ -169,32 +169,35 @@ DEBUG=1 GITHUB_TOKEN=... GEMINI_API_KEY=... WEBHOOK_SECRET=... GITHUB_REPO=... \
 nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
 ```
 
-### Option B — Store credentials in the system keychain (recommended)
+### Option B — Apple Passwords + CLI credential injection (recommended)
 
-nono's credential injection loads secrets from your OS keystore *before* the sandbox is applied, then injects them as environment variables. The credentials are never accessible to the sandboxed process or any library it loads.
+nono's `--env-credential-map` injects secrets from your keychain *before* the sandbox is applied. The sandboxed process sees only the env vars — it cannot read the keychain directly, so a compromised dependency cannot escalate to steal source credentials.
 
-**macOS:**
-
-```bash
-security add-generic-password -s "nono" -a "gemini_api_key"  -w "your_gemini_key"
-security add-generic-password -s "nono" -a "github_token"    -w "ghp_your_real_token"
-security add-generic-password -s "nono" -a "webhook_secret"  -w "your_webhook_secret"
-```
-
-**Linux (secret-tool):**
+**Step 1 — Store credentials in Apple Passwords (macOS)**
 
 ```bash
-echo -n "your_gemini_key"      | secret-tool store --label="nono: gemini_api_key"  service nono username gemini_api_key  target default
-echo -n "ghp_your_real_token"  | secret-tool store --label="nono: github_token"    service nono username github_token     target default
-echo -n "your_webhook_secret"  | secret-tool store --label="nono: webhook_secret"  service nono username webhook_secret   target default
+# GitHub personal access token — stored as an internet password for github.com
+security add-internet-password -s "github.com" -a "your-github-username" -w "ghp_your_real_token"
+
+# Gemini API key — stored as an internet password for the Google API host
+security add-internet-password -s "generativelanguage.googleapis.com" -a "your-account" -w "your_gemini_key"
+
+# Webhook secret — stored as a generic password (no service URL)
+security add-generic-password -s "gitbot" -a "webhook_secret" -w "your_webhook_secret"
 ```
 
-Then run without any secrets on the command line — they're picked up automatically from `env_credentials` in `gitbot-profile.json`:
+**Step 2 — Run with `--env-credential-map`**
 
 ```bash
 GITHUB_REPO=owner/repo \
-nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
+nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 \
+  --env-credential-map 'apple-password://github.com/your-github-username' GITHUB_TOKEN \
+  --env-credential-map 'apple-password://generativelanguage.googleapis.com/your-account' GEMINI_API_KEY \
+  --env-credential webhook_secret \
+  -- python3 bot.py
 ```
+
+The `--env-credential webhook_secret` flag loads from the generic keychain entry and auto-maps to `$WEBHOOK_SECRET`.
 
 In a second terminal, forward webhooks from GitHub to your local server:
 
@@ -249,11 +252,15 @@ git commit -m "Update and re-sign bot instructions"
 
 ### Step 3 — Run
 
-With keychain credentials (Option B above):
+With Apple Passwords credential injection (Option B above):
 
 ```bash
 GITHUB_REPO=owner/repo \
-nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
+nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 \
+  --env-credential-map 'apple-password://github.com/your-github-username' GITHUB_TOKEN \
+  --env-credential-map 'apple-password://generativelanguage.googleapis.com/your-account' GEMINI_API_KEY \
+  --env-credential webhook_secret \
+  -- python3 bot.py
 ```
 
 ---
@@ -313,9 +320,9 @@ Any other connection (e.g. `evil.com`) is refused at the network layer.
 
 ### Credential Injection
 
-Credentials are stored in your OS keychain and injected by nono *before* the sandbox is applied. The process sees environment variables, but the sandbox blocks it from reading the keychain directly — so a compromised dependency cannot escalate to steal the source credentials.
+Credentials are stored in Apple Passwords and injected by nono *before* the sandbox is applied using `--env-credential-map`. The process sees only environment variables — the sandbox blocks direct keychain access, so a compromised dependency cannot escalate to steal the source credentials.
 
-See `env_credentials` in `gitbot-profile.json` and [Option B](#option-b--store-credentials-in-the-system-keychain-recommended) above.
+See [Option B](#option-b--apple-passwords--cli-credential-injection-recommended) above for the full setup.
 
 ---
 
