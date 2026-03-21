@@ -15,7 +15,7 @@ from google.genai import types
 
 logger = logging.getLogger(__name__)
 
-_GEMINI_MODEL = "gemini-1.5-flash"
+_GEMINI_MODEL = "gemini-2.5-flash"
 
 _VALID_LABELS = frozenset(
     ["bug", "feature-request", "question", "security", "needs-info", "duplicate"]
@@ -123,11 +123,13 @@ def _validate(result: dict) -> dict:
     }
 
 
-def run_triage(context: dict, issue_data: dict, api_key: str) -> dict:
+def run_triage(context: dict, issue_data: dict, api_key: str) -> dict | None:
     """
     Call Gemini with the assembled context and issue data.
 
-    Returns a validated triage result dict.
+    Returns a validated triage result dict, or None if the LLM call fails
+    (invalid API key, deprecated model, quota exceeded, etc.). When None is
+    returned the caller must NOT post a response to GitHub.
     """
     client = genai.Client(api_key=api_key)
     user_turn = _build_user_turn(context, issue_data)
@@ -144,5 +146,25 @@ def run_triage(context: dict, issue_data: dict, api_key: str) -> dict:
         logger.debug("Gemini raw response: %.500s", raw_text)
         return parse_response(raw_text)
     except Exception as exc:
-        logger.error("Gemini API call failed: %s", exc)
-        return _SAFE_DEFAULT.copy()
+        exc_type = type(exc).__name__
+        msg = str(exc).lower()
+
+        if "permission" in msg or "api_key" in msg or "401" in msg or "403" in msg:
+            logger.error(
+                "Gemini authentication failed (%s: %s) — check GEMINI_API_KEY. "
+                "No GitHub response will be posted.",
+                exc_type, exc,
+            )
+        elif "deprecated" in msg or "not found" in msg or "404" in msg or "invalid" in msg:
+            logger.error(
+                "Gemini model error (%s: %s) — model '%s' may be deprecated. "
+                "Try updating _GEMINI_MODEL in triage.py. "
+                "No GitHub response will be posted.",
+                exc_type, exc, _GEMINI_MODEL,
+            )
+        else:
+            logger.error(
+                "Gemini API call failed (%s: %s) — no GitHub response will be posted.",
+                exc_type, exc,
+            )
+        return None

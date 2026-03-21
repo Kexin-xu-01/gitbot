@@ -29,8 +29,13 @@ import github_api
 
 load_dotenv()
 
+# ---------------------------------------------------------------------------
+# Logging — DEBUG level when DEBUG env var is set, otherwise INFO
+# ---------------------------------------------------------------------------
+
+_log_level = logging.DEBUG if os.environ.get("DEBUG") else logging.INFO
 logging.basicConfig(
-    level=logging.INFO,
+    level=_log_level,
     format="%(asctime)s %(levelname)s %(name)s — %(message)s",
 )
 logger = logging.getLogger(__name__)
@@ -168,6 +173,15 @@ def webhook():
         logger.error("Triage failed: %s", exc)
         return jsonify({"status": "error", "detail": "triage"}), 200
 
+    # If the LLM call failed (invalid key, deprecated model, etc.) don't post
+    # a fake response to GitHub — just log and return silently.
+    if triage_result is None:
+        logger.warning(
+            "Skipping GitHub response for issue #%d — LLM unavailable.",
+            issue_data["number"],
+        )
+        return jsonify({"status": "llm_unavailable"}), 200
+
     logger.info(
         "Triage result for #%d: label=%r escalate=%s",
         issue_data["number"],
@@ -259,6 +273,7 @@ if __name__ == "__main__":
     ctx.warm_cache(GITHUB_REPO, GITHUB_TOKEN)
 
     # Step 3: Start server
-    logger.info("Starting gitbot on port 5000...")
     port = int(os.environ.get("PORT", 5001))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    debug_mode = bool(os.environ.get("DEBUG"))
+    logger.info("Starting gitbot on port %d (debug=%s)...", port, debug_mode)
+    app.run(host="0.0.0.0", port=port, debug=debug_mode)

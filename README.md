@@ -20,7 +20,7 @@ GitHub Issue Opened
   │    ├─ nono docs  (nono.sh, cached)     │
   │    ├─ recent issues  (GitHub, TTL 5m)  │
   │    └─ GEMINI.md  (trust-verified)      │
-  │  run_triage()  ──► Gemini 1.5 Flash   │
+  │  run_triage()  ──► Gemini 2.5 Flash   │
   │  post_response()                       │
   │    ├─ ensure label exists              │
   │    ├─ apply label                      │
@@ -90,14 +90,108 @@ pip install -r requirements.txt
 
 ---
 
+## First-time Setup: Generate and Embed Your Signing Key
+
+The repo ships with the original author's signing key in `trust-policy.json`. Before running the bot yourself, you need to replace it with your own key so that nono trusts *your* signatures on `GEMINI.md`.
+
+### Step 1 — Generate a keypair
+
+```bash
+nono trust keygen
+# Writes: nono-key.pem (private) and nono-key.pub (public)
+```
+
+Keep `nono-key.pem` secret — **do not commit it**.
+
+### Step 2 — Update trust-policy.json
+
+Replace the `public_key` value in `trust-policy.json` with the contents of `nono-key.pub`:
+
+```json
+{
+  "version": 1,
+  "publishers": [
+    {
+      "name": "local-dev",
+      "key_id": "default",
+      "public_key": "<paste your nono-key.pub content here>"
+    }
+  ],
+  "instruction_patterns": ["GEMINI.md"],
+  "blocklist": { "digests": [] },
+  "enforcement": "deny"
+}
+```
+
+### Step 3 — Sign GEMINI.md and trust-policy.json
+
+```bash
+nono trust sign --key nono-key.pem GEMINI.md
+nono trust sign --key nono-key.pem trust-policy.json
+# Creates GEMINI.md.bundle and trust-policy.json.bundle
+```
+
+### Step 4 — Verify
+
+```bash
+nono trust verify GEMINI.md
+nono trust verify trust-policy.json
+# Both should exit 0 with no errors
+```
+
+### Step 5 — Commit the bundle files
+
+```bash
+git add trust-policy.json trust-policy.json.bundle GEMINI.md.bundle
+git commit -m "Embed my signing key and re-sign instruction files"
+```
+
+> **Important:** Always commit `.bundle` files alongside their source files. The bundle contains the cryptographic proof; without it, nono cannot verify the file.
+
+---
+
 ## Running in Dev Mode
 
-Run under nono with credentials passed as environment variables:
+### Option A — Pass credentials as environment variables (simple)
 
 ```bash
 GITHUB_TOKEN=ghp_your_real_token \
 GEMINI_API_KEY=your_gemini_key \
 WEBHOOK_SECRET=your_webhook_secret \
+GITHUB_REPO=owner/repo \
+nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
+```
+
+To enable debug logging and Flask's debug mode, add `DEBUG=1`:
+
+```bash
+DEBUG=1 GITHUB_TOKEN=... GEMINI_API_KEY=... WEBHOOK_SECRET=... GITHUB_REPO=... \
+nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
+```
+
+### Option B — Store credentials in the system keychain (recommended)
+
+nono's credential injection loads secrets from your OS keystore *before* the sandbox is applied, then injects them as environment variables. The credentials are never accessible to the sandboxed process or any library it loads.
+
+**macOS:**
+
+```bash
+security add-generic-password -s "nono" -a "gemini_api_key"  -w "your_gemini_key"
+security add-generic-password -s "nono" -a "github_token"    -w "ghp_your_real_token"
+security add-generic-password -s "nono" -a "webhook_secret"  -w "your_webhook_secret"
+```
+
+**Linux (secret-tool):**
+
+```bash
+echo -n "your_gemini_key"      | secret-tool store --label="nono: gemini_api_key"  service nono username gemini_api_key  target default
+echo -n "ghp_your_real_token"  | secret-tool store --label="nono: github_token"    service nono username github_token     target default
+echo -n "your_webhook_secret"  | secret-tool store --label="nono: webhook_secret"  service nono username webhook_secret   target default
+```
+
+Then run without any secrets on the command line — they're picked up automatically from `env_credentials` in `gitbot-profile.json`:
+
+```bash
 GITHUB_REPO=owner/repo \
 nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
 ```
@@ -144,19 +238,20 @@ These are encoded in `gitbot-profile.json`. The `add_deny_access` block explicit
 
 ### Step 2 — Sign GEMINI.md
 
+See [First-time Setup](#first-time-setup-generate-and-embed-your-signing-key) above. If you've already done this:
+
 ```bash
-nono trust sign GEMINI.md
-# Creates GEMINI.md.bundle — commit both files
+# After editing GEMINI.md, re-sign:
+nono trust sign --key nono-key.pem GEMINI.md
 git add GEMINI.md GEMINI.md.bundle
-git commit -m "Sign GEMINI.md with nono trust"
+git commit -m "Update and re-sign bot instructions"
 ```
 
-### Step 3 — Run with credentials as environment variables
+### Step 3 — Run
+
+With keychain credentials (Option B above):
 
 ```bash
-GITHUB_TOKEN=ghp_your_real_token \
-GEMINI_API_KEY=your_gemini_key \
-WEBHOOK_SECRET=your_webhook_secret \
 GITHUB_REPO=owner/repo \
 nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
 ```
@@ -167,7 +262,7 @@ nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 
 
 ### Trust Verification (GEMINI.md Integrity)
 
-At startup, bot.py runs `nono trust verify GEMINI.md`. If the file has been modified since it was signed, the process exits before it can read the instructions.
+At startup, nono verifies `GEMINI.md` before the process can read it. If the file has been modified since it was signed, the process exits before it can read the instructions.
 
 This prevents prompt injection via filesystem: an attacker who can write to the bot's directory cannot change the bot's behavior without detection.
 
@@ -180,7 +275,7 @@ nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 
 # Re-sign with: nono trust sign GEMINI.md
 
 git checkout GEMINI.md
-nono trust sign GEMINI.md
+nono trust sign --key nono-key.pem GEMINI.md
 nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py  # succeeds
 ```
 
@@ -198,24 +293,29 @@ Even if a compromised dependency (Flask, PyGithub, google-generativeai) tries to
 **Demo:**
 
 ```bash
-curl http://localhost:5000/debug/read-ssh
+curl http://localhost:5001/debug/read-ssh
 # Under nono: {"status": "blocked_by_nono (EPERM — expected)"}
 # Without nono: {"status": "read_succeeded (nono NOT enforcing)"}
 ```
 
 ### Network Policy
 
-Only these outbound connections are permitted:
+Only these outbound connections are permitted (defined in `gitbot-profile.json`):
 
 ```
-api.github.com:443
-generativelanguage.googleapis.com:443
-nono.sh:443
-smee.io:443
-127.0.0.1:*
+api.github.com
+generativelanguage.googleapis.com
+nono.sh
+smee.io
 ```
 
 Any other connection (e.g. `evil.com`) is refused at the network layer.
+
+### Credential Injection
+
+Credentials are stored in your OS keychain and injected by nono *before* the sandbox is applied. The process sees environment variables, but the sandbox blocks it from reading the keychain directly — so a compromised dependency cannot escalate to steal the source credentials.
+
+See `env_credentials` in `gitbot-profile.json` and [Option B](#option-b--store-credentials-in-the-system-keychain-recommended) above.
 
 ---
 
@@ -232,7 +332,7 @@ Any other connection (e.g. `evil.com`) is refused at the network layer.
 To modify the bot's behavior: edit `GEMINI.md`, then re-sign:
 
 ```bash
-nono trust sign GEMINI.md
+nono trust sign --key nono-key.pem GEMINI.md
 git add GEMINI.md GEMINI.md.bundle
 git commit -m "Update and re-sign bot instructions"
 ```
@@ -254,7 +354,7 @@ Test coverage:
 
 ## Hardening and Cloud Deployment Path
 
-This prototype runs locally with credentials passed as environment variables. A production deployment would add several layers:
+This prototype runs locally with credentials stored in the system keychain. A production deployment would add several layers:
 
 ### Automated signing with nono-attest
 
@@ -300,25 +400,13 @@ The trust policy would then reference the GitHub Actions OIDC identity rather th
 
 This means only the CI pipeline on `main` can produce a valid signature — a developer's local key is no longer trusted.
 
-### Credential injection
-
-The current prototype passes credentials as plain environment variables to `nono run`. When nono's credential injection feature ships, credentials will be stored in the system keychain and injected as phantom tokens — the process sees the env var but the real value is swapped in at the network layer:
-
-```bash
-nono credential store --name gitbot/github-token  --value ghp_...
-nono credential store --name gitbot/gemini-api-key --value ...
-nono run --profile gitbot-profile.json -- python3 bot.py
-# GITHUB_TOKEN seen by process: "nono:phantom:..."
-# Real token injected by nono on outbound call to api.github.com
-```
-
 ### Cloud deployment
 
 1. Package the bot as a container image
 2. Run under `nono wrap` as the entrypoint (so nono is the PID 1)
 3. Mount `gitbot-profile.json` and `trust-policy.json` from a secrets manager
 4. Replace smee.io with a real public HTTPS endpoint (load balancer → bot)
-5. Store `WEBHOOK_SECRET` in the cloud keychain, not an env var
+5. Store credentials in the cloud keychain, not env vars
 
 ### Other production items
 
