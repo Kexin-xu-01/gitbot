@@ -72,7 +72,7 @@ security add-internet-password -s "github.com" -a "your-github-username" -w "ghp
 security add-internet-password -s "generativelanguage.googleapis.com" -a "your-account" -w "your_gemini_key"
 
 # Webhook secret
-security add-generic-password -s "gitbot" -a "webhook_secret" -w "your_webhook_secret"
+security add-internet-password -s "gitbot.local" -a "webhook_secret" -w "your_webhook_secret"
 ```
 
 ### 5. Generate your signing key and embed it
@@ -126,7 +126,7 @@ GITHUB_REPO=owner/repo \
 nono run --profile gitbot-profile.json --allow-cwd --listen-port 5001 \
   --env-credential-map 'apple-password://github.com/your-github-username' GITHUB_TOKEN \
   --env-credential-map 'apple-password://generativelanguage.googleapis.com/your-account' GEMINI_API_KEY \
-  --env-credential webhook_secret \
+  --env-credential-map 'apple-password://gitbot.local/webhook_secret' WEBHOOK_SECRET \
   -- python3 bot.py
 ```
 
