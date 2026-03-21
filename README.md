@@ -152,24 +152,9 @@ git commit -m "Embed my signing key and re-sign instruction files"
 
 ## Running in Dev Mode
 
-### Option A — Pass credentials as environment variables (quick test only)
+Credentials must be stored in Apple Passwords and injected via `--env-credential-map` — do not pass tokens directly on the command line or as plain environment variables.
 
-```bash
-GITHUB_TOKEN=ghp_your_real_token \
-GEMINI_API_KEY=your_gemini_key \
-WEBHOOK_SECRET=your_webhook_secret \
-GITHUB_REPO=owner/repo \
-nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
-```
-
-To enable debug logging and Flask's debug mode, add `DEBUG=1`:
-
-```bash
-DEBUG=1 GITHUB_TOKEN=... GEMINI_API_KEY=... WEBHOOK_SECRET=... GITHUB_REPO=... \
-nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 -- python3 bot.py
-```
-
-### Option B — Apple Passwords + CLI credential injection (recommended)
+### Apple Passwords + CLI credential injection
 
 nono's `--env-credential-map` injects secrets from your keychain *before* the sandbox is applied. The sandboxed process sees only the env vars — it cannot read the keychain directly, so a compromised dependency cannot escalate to steal source credentials.
 
@@ -198,6 +183,17 @@ nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 \
 ```
 
 The `--env-credential webhook_secret` flag loads from the generic keychain entry and auto-maps to `$WEBHOOK_SECRET`.
+
+To enable verbose logging and Flask debug mode, prepend `DEBUG=1`:
+
+```bash
+DEBUG=1 GITHUB_REPO=owner/repo \
+nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 \
+  --env-credential-map 'apple-password://github.com/your-github-username' GITHUB_TOKEN \
+  --env-credential-map 'apple-password://generativelanguage.googleapis.com/your-account' GEMINI_API_KEY \
+  --env-credential webhook_secret \
+  -- python3 bot.py
+```
 
 In a second terminal, forward webhooks from GitHub to your local server:
 
@@ -252,7 +248,7 @@ git commit -m "Update and re-sign bot instructions"
 
 ### Step 3 — Run
 
-With Apple Passwords credential injection (Option B above):
+With Apple Passwords credential injection (see [Running in Dev Mode](#running-in-dev-mode)):
 
 ```bash
 GITHUB_REPO=owner/repo \
@@ -322,7 +318,7 @@ Any other connection (e.g. `evil.com`) is refused at the network layer.
 
 Credentials are stored in Apple Passwords and injected by nono *before* the sandbox is applied using `--env-credential-map`. The process sees only environment variables — the sandbox blocks direct keychain access, so a compromised dependency cannot escalate to steal the source credentials.
 
-See [Option B](#option-b--apple-passwords--cli-credential-injection-recommended) above for the full setup.
+See [Running in Dev Mode](#running-in-dev-mode) for the full setup.
 
 ---
 
