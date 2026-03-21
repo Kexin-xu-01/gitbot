@@ -123,7 +123,7 @@ In one terminal, start the bot:
 
 ```bash
 GITHUB_REPO=owner/repo \
-nono run --profile gitbot-profile.json --allow-cwd --allow-bind 5001 \
+nono run --profile gitbot-profile.json --allow-cwd --listen-port 5001 \
   --env-credential-map 'apple-password://github.com/your-github-username' GITHUB_TOKEN \
   --env-credential-map 'apple-password://generativelanguage.googleapis.com/your-account' GEMINI_API_KEY \
   --env-credential webhook_secret \
