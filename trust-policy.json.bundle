@@ -12,7 +12,7 @@
     "payload": "eyJfdHlwZSI6Imh0dHBzOi8vaW4tdG90by5pby9TdGF0ZW1lbnQvdjEiLCJzdWJqZWN0IjpbeyJuYW1lIjoidHJ1c3QtcG9saWN5Lmpzb24iLCJkaWdlc3QiOnsic2hhMjU2IjoiMDk5YTA2NWQzNTQ5N2VmOWFhN2YxZWU4MmI1MzgzN2M0MDk4OWZlZTRmZjgwZDJjZWE3YzlmZjU5YTRkMDFlMiJ9fV0sInByZWRpY2F0ZVR5cGUiOiJodHRwczovL25vbm8uc2gvYXR0ZXN0YXRpb24vdHJ1c3QtcG9saWN5L3YxIiwicHJlZGljYXRlIjp7InZlcnNpb24iOjEsInNpZ25lciI6eyJraW5kIjoia2V5ZWQiLCJrZXlfaWQiOiJkZWZhdWx0In19fQ==",
     "signatures": [
       {
-        "sig": "MEUCIQCSCS99QBOSFD4H4sYikVPcUrxlYtnHKQKY7oPU4C3IgQIgHbDmAxxe+k0XhiSgn0Rreqyr0mdryZUTO00rukCuwW4="
+        "sig": "MEUCIQCrttnC9ZSQzGws/lsXRkwR2AFYcR+EWa3eCG5JgK1aPgIgYGuVWAU9LTWIWaAOJmaodrbdev6eQmlOAEZyHrfKEl4="
       }
     ]
   }

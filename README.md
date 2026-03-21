@@ -77,14 +77,14 @@ security add-internet-password -s "generativelanguage.googleapis.com" -a "your-a
 The repo ships with the original author's public key in `trust-policy.json`. Replace it with your own so nono trusts your signatures on `GEMINI.md`.
 
 ```bash
-# Generate a key (stored in nono's keystore, no file to commit)
-nono trust keygen --id gitbot
+# Generate a key (stored in nono's keystore as 'default')
+nono trust keygen
 
 # Copy the output of this command
-nono trust export-key --id gitbot
+nono trust export-key
 ```
 
-Paste the output into `trust-policy.json` as `public_key` and set `key_id` to `gitbot`:
+Paste the output into `trust-policy.json` as `public_key`:
 
 ```json
 {
@@ -92,7 +92,7 @@ Paste the output into `trust-policy.json` as `public_key` and set `key_id` to `g
   "publishers": [
     {
       "name": "local-dev",
-      "key_id": "gitbot",
+      "key_id": "default",
       "public_key": "<paste nono trust export-key output here>"
     }
   ],
@@ -105,8 +105,8 @@ Paste the output into `trust-policy.json` as `public_key` and set `key_id` to `g
 ### 6. Sign the files and commit
 
 ```bash
-nono trust sign --key gitbot GEMINI.md   # creates GEMINI.md.bundle
-nono trust sign-policy --key default     # signs with default key so nono can bootstrap the policy
+nono trust sign --key default GEMINI.md   # creates GEMINI.md.bundle
+nono trust sign-policy --key default      # creates trust-policy.json.bundle
 
 nono trust verify GEMINI.md --policy ./trust-policy.json   # should exit 0
 
@@ -145,7 +145,7 @@ Use smee's event replay button to re-test without opening new GitHub issues.
 Edit `GEMINI.md`, then re-sign and commit:
 
 ```bash
-nono trust sign --key gitbot GEMINI.md
+nono trust sign --key default GEMINI.md
 git add GEMINI.md GEMINI.md.bundle
 git commit -m "Update and re-sign bot instructions"
 ```
