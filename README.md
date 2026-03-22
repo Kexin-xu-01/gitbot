@@ -49,7 +49,23 @@ GitHub Issue Opened
 ```bash
 git clone https://github.com/Kexin-xu-01/gitbot.git
 cd gitbot
-pip3 install -r requirements.txt
+```
+
+nono runs as x86_64 on macOS, so the virtualenv must be created with `arch -x86_64` to get matching packages:
+
+```bash
+arch -x86_64 python3 -m venv .venv
+source .venv/bin/activate
+arch -x86_64 pip install -r requirements.txt
+```
+
+Then update `gitbot-profile.json` to point to your venv — replace `$HOME/Library/Python/3.11` with the absolute path to `.venv`:
+
+```json
+"read": [
+  "/Library/Frameworks/Python.framework/Versions/3.11",
+  "/absolute/path/to/gitbot/.venv"
+]
 ```
 
 ### 3. Configure GitHub webhook
@@ -124,7 +140,7 @@ GITHUB_REPO=owner/repo \
 nono run --profile gitbot-profile.json --allow-cwd --listen-port 5001 \
   --env-credential-map 'apple-password://github.com/your-github-username' GITHUB_TOKEN \
   --env-credential-map 'apple-password://generativelanguage.googleapis.com/your-account' GEMINI_API_KEY \
-  -- python3 bot.py
+  -- .venv/bin/python3 bot.py
 ```
 
 In a second terminal, forward webhooks:
