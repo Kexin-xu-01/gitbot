@@ -287,39 +287,6 @@ One practical note: nono has a thread limit at sandbox fork time. Loading more t
 
 ---
 
-## Bonus: Validating the LLM Before Posting to GitHub
-
-One practical lesson from running this bot: if the Gemini API key is invalid or the model is deprecated, the original code silently fell back to a canned response and posted it to GitHub. A generic "thank you for your issue" comment from a bot that didn't actually triage anything is worse than no comment.
-
-The fix in `triage.py` is to return `None` on any API failure instead of the safe default:
-
-```python
-def run_triage(context, issue_data, api_key) -> dict | None:
-    try:
-        response = client.models.generate_content(...)
-        return parse_response(response.text)
-    except Exception as exc:
-        msg = str(exc).lower()
-        if "permission" in msg or "403" in msg:
-            logger.error("Gemini auth failed — check GEMINI_API_KEY. No response will be posted.")
-        elif "deprecated" in msg or "404" in msg:
-            logger.error("Model deprecated — update _GEMINI_MODEL. No response posted.")
-        else:
-            logger.error("Gemini call failed: %s. No response posted.", exc)
-        return None
-```
-
-And in `bot.py`, the webhook handler checks before posting:
-
-```python
-triage_result = triage.run_triage(context, issue_data, GEMINI_API_KEY)
-if triage_result is None:
-    logger.warning("Skipping GitHub response for #%d — LLM unavailable.", issue_data["number"])
-    return jsonify({"status": "llm_unavailable"}), 200
-```
-
----
-
 ## Putting It Together
 
 ```
@@ -344,7 +311,6 @@ if triage_result is None:
 | Compromised dependency reads `~/.ssh` | Filesystem deny rule — `EPERM` |
 | Compromised dependency calls `evil.com` | Network allow-list — connection refused |
 | Attacker modifies `GEMINI.md` | Trust verification — process won't start |
-| Bot posts fake response when LLM is down | `None` return guard in triage pipeline |
 | Credentials visible in shell history | Apple Passwords injection via `--env-credential-map` |
 
 ---
